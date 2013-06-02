@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Calendar;
 import java.util.List;
 
 import org.json.simple.JSONObject;
@@ -12,32 +13,70 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import android.app.Activity;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.app.WallpaperManager;
+import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
 import android.view.Menu;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.Button;
 
 public class MainActivity extends Activity {
-	Handler handler;
+	PendingIntent pendingIntent = null;
+
+	boolean serviceStarted = false;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		handler = new Handler() {
+
+		setContentView(R.layout.activity_main);
+
+		Button b = (Button) findViewById(R.id.actionServiceButton);
+		b.setOnClickListener(new OnClickListener() {
+
 			@Override
-			public void handleMessage(Message msg) {
-				super.handleMessage(msg);
+			public void onClick(View arg0) {
+				Button b = (Button) arg0;
 
-				switch (msg.what) {
+				if (!serviceStarted) {
+					Log.d("FW", "Starting the service...");
+					Intent intent = new Intent(MainActivity.this,
+							WallpaperChangerService.class);
 
+					pendingIntent = PendingIntent.getService(MainActivity.this,
+							0, intent, 0);
+
+					Calendar calendar = Calendar.getInstance();
+					calendar.setTimeInMillis(System.currentTimeMillis());
+					calendar.add(Calendar.SECOND, 10);
+
+					AlarmManager alamrManager = (AlarmManager) getSystemService(ALARM_SERVICE);
+					alamrManager.set(AlarmManager.RTC_WAKEUP,
+							calendar.getTimeInMillis(), pendingIntent);
+					Log.d("FW", "Service started.");
+					b.setBackgroundResource(R.drawable.stop_blue);
+					serviceStarted = true;
+				} else {
+					Log.d("FW", "Stopping the service...");
+					AlarmManager alamrManager = (AlarmManager) getSystemService(ALARM_SERVICE);
+					alamrManager.cancel(pendingIntent);
+					Log.d("FW", "Service stopped.");
+					b.setBackgroundResource(R.drawable.start_blue);
+					serviceStarted = false;
 				}
-
 			}
-		};
+		});
 
+	}
+
+	void doShit() {
 		AsyncTask<Integer, String, Object> task = new AsyncTask<Integer, String, Object>() {
 
 			@Override
@@ -111,9 +150,6 @@ public class MainActivity extends Activity {
 				}
 			}
 		};
-
-		setContentView(R.layout.activity_main);
-
 	}
 
 	String getJSON() throws MalformedURLException, IOException {
